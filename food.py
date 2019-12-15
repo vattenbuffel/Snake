@@ -3,41 +3,39 @@ import random
 
 
 class Food:
-    def __init__(self, img, game):
-        self.max_x = game.display_width
-        self.max_y = game.display_height
-        self.disp = game.gameDisplay
-        self.img_heigt = 40
-        self.img_width = 40
-        self.img = pygame.transform.smoothscale(img, (self.img_width, self.img_width))
-        self.img = pygame.transform.rotate(self.img, -90)
+    def __init__(self, game):
+        self.max_x = game.n_squares_width - 1
+        self.max_y = game.n_squares_height - 1
         self.alive = True
+        self.squares = game.squares
         self.x = -1
         self.y = -1
         self.size = 20
 
-        self.spawn()
+        self.spawn(game)
 
     def render(self):
-        self.disp.blit(self.img, (self.x, self.y))
-
-    def update(self):
         pass
+
+    def update(self, game):
+        if not self.alive:
+            self.spawn(game)
+        index = self.x * (1 + self.max_x) + self.y
+        self.squares[index].state = self.squares[0].states['food']
 
     def die(self):
         self.alive = False
 
-    def spawn(self):
-        self.x = random.randint(0, self.max_x - self.img_width)
-        self.y = random.randint(0, self.max_y - self.img_heigt)
+    def spawn(self, game):
+        self.x = random.randint(0, self.max_x)
+        self.y = random.randint(0, self.max_y)
+        if self.x in game.snake.xs and self.y in game.snake.ys:
+            try:
+                self.spawn(game)
+            except:
+                print('wallah')
+
         self.alive = True
 
-    def get_eaten(self, bite_size):
-        # If the bite_size is bigger than what's left, return what's left and die. Else just return bite_size
-        bite = bite_size
-        if bite_size > self.size:
-            bite = self.size
-            self.die()
-
-        self.size -= bite_size
-        return bite
+    def get_eaten(self):
+        self.die()

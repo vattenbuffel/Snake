@@ -2,35 +2,42 @@ import pygame
 import time
 import npc
 import food
+import square
 
-#todo: add a method too check the state of the game
 class Game:
     def __init__(self):
         self.display_width = 1280
         self.display_height = 720
+        self.n_squares_width = 10
+        self.n_squares_height = 10
         self.pygame = pygame
         self.gameDisplay = pygame.display.set_mode((self.display_width, self.display_height))
-        self.pygame.display.set_caption('A society')
+        self.pygame.display.set_caption('Snake')
         self.clock = pygame.time.Clock()
-        self.white = (255, 255, 255)
+        self.black = (0, 0, 0)
         self.fps = 60
         self.is_done = False
-        self.npcs = []
-        self.food = []
-        self.inhabit_society(n_npc=50, n_food=10)
+        self.img_scale_factor = 0.9
+        self.squares = [square.Square(x, y, self.display_width/self.n_squares_width, self.display_height/self.n_squares_height, self) for x in range(self.n_squares_width) for y in range(self.n_squares_height)]
+
+        self.events = None
+        self.human_playing = True
+        self.snake = npc.NPC(self)
+        self.food = food.Food(self)
 
     def update(self):
         self.handle_event()
-        for kirby in self.npcs:
-            kirby.update(self)
+        for sq in self.squares:
+            sq.update()
+        self.food.update(self)
+        self.snake.update(self)
 
-        for cookie in self.food:
-            cookie.update()
-
-        self.handle_dead()
+        if not self.is_done:
+            self.is_done = not self.snake.alive
 
     def handle_event(self):
-        for event in self.pygame.event.get():
+        self.events = self.pygame.event.get()
+        for event in self.events:
             if event.type == pygame.KEYUP or event.type == pygame.KEYDOWN:
                 self.read_keyboard(event)
 
@@ -39,19 +46,9 @@ class Game:
             self.is_done = True
 
     def render(self):
-        self.gameDisplay.fill(self.white)
-        for kirby in self.npcs:
-            try:
-                kirby.render()
-            except:
-                self.npcs.remove(kirby)
-                break
-        for cookie in self.food:
-            try:
-                cookie.render()
-            except:
-                self.npcs.remove(cookie)
-                break
+        self.gameDisplay.fill(self.black)
+        for sq in self.squares:
+            sq.render()
 
         self.pygame.display.update()
 
@@ -63,20 +60,6 @@ class Game:
 
         self.pygame.quit()
 
-    def handle_dead(self):
-        alive = [kirby if kirby.alive else -1 for kirby in self.npcs]
-        try:
-            alive.remove(-1)
-        except:
-            pass
-        self.npcs = alive
-
-        self.food = [cookie if cookie.alive else food.Food(pygame.image.load('./img/food.jpg'), self) for cookie in self.food]
-
-
-    def inhabit_society(self, n_npc, n_food):
-        self.npcs = [npc.NPC(self, male=i%2==0) for i in range(n_npc)]
-        self.food = [food.Food(pygame.image.load('./img/food.jpg'), self) for i in range(n_food)]
 
 Game().run()
 
