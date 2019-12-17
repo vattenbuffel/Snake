@@ -13,12 +13,14 @@ from keras.callbacks import TensorBoard
 class Agent:
     def __init__(self, npc):
         self.discount = 0.9
-        self.training_size = 1000  # Minimum number of steps in a memory to start training
-        self.update_target_every = 50  # Terminal states (end of episodes)
+        self.training_size = 2500  # Minimum number of steps in a memory to start training
+        self.update_target_every = 10  # Terminal states (end of episodes)
         self.target_update_counter = 0
         self.train_counter_max = 250
         self.train_counter = self.train_counter_max
         self.memory = deque(maxlen=50000)  # Should be in the form [old_state, new_state, action, reward, if_terminal_state]
+        self.verbose = 0
+
         self.n_outputs = npc.n_actions
         self.n_inputs = len(npc.old_state)
 
@@ -38,8 +40,8 @@ class Agent:
         model.add(Dense(256, activation='linear'))
         model.add(Dense(self.n_outputs))
 
-        #model.compile(loss="mse", optimizer=Adam(lr=0.001), metrics=['mae'])
-        model.compile(loss="mse", optimizer=Adam(lr=0.001))
+        model.compile(loss="mse", optimizer=Adam(lr=0.001), metrics=['mae'])
+        #model.compile(loss="mse", optimizer=Adam(lr=0.001))
         return model
 
     def update(self, npc):
@@ -88,8 +90,7 @@ class Agent:
             x.append(old_state)
             y.append(old_qs)
 
-
-        self.model.fit(np.array(x), np.array(y), epochs=1500, batch_size=self.training_size, verbose=1, shuffle=False)
+        self.model.fit(np.array(x), np.array(y), epochs=150, batch_size=self.training_size, verbose=self.verbose, shuffle=False)
 
         self.target_update_counter += 1
         if self.target_update_counter >= self.update_target_every:
@@ -104,6 +105,7 @@ class Agent:
 
         if self.epsilon < 0:
             print('epsilon < 0')
+            self.epsilon = self.epsilon_max
         if np.random.random() < self.epsilon:
             return np.random.randint(0, self.n_outputs)
 

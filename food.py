@@ -27,10 +27,10 @@ class Food:
         self.alive = False
 
     def spawn(self, game):
-        #self.x = random.randint(0, self.max_x)
-        #self.y = random.randint(0, self.max_y)
-        self.x = self.y = 0
-        return
+        self.x = random.randint(0, self.max_x)
+        self.y = random.randint(0, self.max_y)
+        #self.x = self.y = 0
+        #return
         # See if snake is at this pos
         x_in_snake = self.x in game.snake.xs
         if x_in_snake and self.y == game.snake.ys[game.snake.xs.index(self.x)]:

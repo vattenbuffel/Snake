@@ -68,7 +68,7 @@ class NPC:
     def update_reward(self, game):
         # If snake died reward is -10^6
         if not self.alive:
-            self.reward = -10 ** 2
+            self.reward = -25
 
         elif not (False in [game.squares[0].states['board'] == x.state for x in game.squares]):
             self.reward = 10 ** 7
@@ -77,7 +77,7 @@ class NPC:
 
         # If food has been eaten reward is 10^3
         elif self.new_distance_to_food == 0:
-            self.reward = 25
+            self.reward = 100
 
         # Check if gotten closer to food reward is 1 and update old_dist_to_food
         elif self.new_distance_to_food < self.old_distance_to_food:
