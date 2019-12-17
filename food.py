@@ -12,7 +12,7 @@ class Food:
         self.y = -1
         self.size = 20
 
-        self.spawn(game)
+        #self.spawn(game)
 
     def render(self):
         pass
@@ -27,9 +27,13 @@ class Food:
         self.alive = False
 
     def spawn(self, game):
-        self.x = random.randint(0, self.max_x)
-        self.y = random.randint(0, self.max_y)
-        if self.x in game.snake.xs and self.y in game.snake.ys:
+        #self.x = random.randint(0, self.max_x)
+        #self.y = random.randint(0, self.max_y)
+        self.x = self.y = 0
+        return
+        # See if snake is at this pos
+        x_in_snake = self.x in game.snake.xs
+        if x_in_snake and self.y == game.snake.ys[game.snake.xs.index(self.x)]:
             try:
                 self.spawn(game)
             except:
