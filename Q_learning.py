@@ -10,6 +10,7 @@ from keras.optimizers import Adam
 from keras.callbacks import TensorBoard
 
 
+
 class Agent:
     def __init__(self, npc):
         self.discount = 0.9
@@ -18,7 +19,8 @@ class Agent:
         self.target_update_counter = 0
         self.train_counter_max = 250
         self.train_counter = self.train_counter_max
-        self.memory = deque(maxlen=50000)  # Should be in the form [old_state, new_state, action, reward, if_terminal_state]
+        self.memory = []
+        #self.memory = deque(maxlen=50000)  # Should be in the form [old_state, new_state, action, reward, if_terminal_state]
         self.verbose = 0
 
         self.n_outputs = npc.n_actions
@@ -45,7 +47,6 @@ class Agent:
         return model
 
     def update(self, npc):
-        self.train_counter -= 1
         self.update_memory(npc)
         self.train()
         self.get_action(npc)
@@ -57,16 +58,24 @@ class Agent:
         #print()
         self.memory.append(np.array([npc.old_state, npc.new_state, npc.action, npc.reward, npc.terminal_state]))
 
-    def train(self, force=False):
-        if not force and self.train_counter > 0:
-            return
-
-        self.train_counter = self.train_counter_max
-
+    def train(self):
         try:
             train_batch = random.sample(self.memory, self.training_size)
         except:
             train_batch = self.memory
+
+        # remove duplicate transitions
+        def state_in_trans(trans_list, state):
+            for trans in trans_list:
+                if all(trans[0] == state):
+                    return True
+            return False
+
+        tmp = []
+        for trans in train_batch:
+            if not state_in_trans(tmp, trans[0]):
+                tmp.append(trans)
+        train_batch = tmp
 
         old_states = np.array([x[0] for x in train_batch])
         old_qs_list = self.model.predict(old_states)
@@ -90,7 +99,7 @@ class Agent:
             x.append(old_state)
             y.append(old_qs)
 
-        self.model.fit(np.array(x), np.array(y), epochs=150, batch_size=self.training_size, verbose=self.verbose, shuffle=False)
+        self.model.fit(np.array(x), np.array(y), epochs=1, batch_size=self.training_size, verbose=self.verbose, shuffle=False)
 
         self.target_update_counter += 1
         if self.target_update_counter >= self.update_target_every:
@@ -107,6 +116,7 @@ class Agent:
             print('epsilon < 0')
             self.epsilon = self.epsilon_max
         if np.random.random() < self.epsilon:
+            print('returning random action')
             return np.random.randint(0, self.n_outputs)
 
         state = np.array([npc.new_state])

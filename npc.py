@@ -81,10 +81,10 @@ class NPC:
 
         # Check if gotten closer to food reward is 1 and update old_dist_to_food
         elif self.new_distance_to_food < self.old_distance_to_food:
-            self.reward = 10
+            self.reward = 1000
             # If not closer reward is -1
         else:
-            self.reward = -10
+            self.reward = -1000
 
     def calc_dist_to_food(self, game):
         x_diff = self.xs[0] - game.food.x
@@ -115,11 +115,9 @@ class NPC:
             self.terminal_state = not self.alive
             self.action = self.dir
             #print('self.state', self.new_state)
-            #print('self.reward', self.reward)
+            print('self.reward', self.reward)
             #print('self.distance', self.new_distance_to_food)
             self.agent.update(self)
-            if self.terminal_state:
-                self.agent.train(force=True)
 
 
     def square_update(self):
