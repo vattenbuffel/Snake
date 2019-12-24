@@ -5,9 +5,6 @@ import numpy as np
 import Q_learning
 
 
-# todo: check if qlearning functions work
-
-
 class NPC:
     def __init__(self, game):
         self.max_x = game.n_squares_width - 1
@@ -68,7 +65,7 @@ class NPC:
     def update_reward(self, game):
         # If snake died reward is -10^6
         if not self.alive:
-            self.reward = -25
+            self.reward = -100
 
         elif not (False in [game.squares[0].states['board'] == x.state for x in game.squares]):
             self.reward = 10 ** 7
@@ -77,14 +74,14 @@ class NPC:
 
         # If food has been eaten reward is 10^3
         elif self.new_distance_to_food == 0:
-            self.reward = 100
+            self.reward = 25
 
         # Check if gotten closer to food reward is 1 and update old_dist_to_food
         elif self.new_distance_to_food < self.old_distance_to_food:
-            self.reward = 1000
+            self.reward = 10
             # If not closer reward is -1
         else:
-            self.reward = -1000
+            self.reward = -10
 
     def calc_dist_to_food(self, game):
         x_diff = self.xs[0] - game.food.x
@@ -115,7 +112,7 @@ class NPC:
             self.terminal_state = not self.alive
             self.action = self.dir
             #print('self.state', self.new_state)
-            print('self.reward', self.reward)
+            #print('self.reward', self.reward)
             #print('self.distance', self.new_distance_to_food)
             self.agent.update(self)
 

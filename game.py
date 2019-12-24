@@ -8,8 +8,8 @@ class Game:
     def __init__(self):
         self.display_width = 400
         self.display_height = 400
-        self.n_squares_width = 3
-        self.n_squares_height = 3
+        self.n_squares_width = 7
+        self.n_squares_height = 7
         self.pygame = pygame
         self.gameDisplay = pygame.display.set_mode((self.display_width, self.display_height))
         self.pygame.display.set_caption('Snake')
