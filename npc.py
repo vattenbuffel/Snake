@@ -25,8 +25,8 @@ class NPC:
         # Initiate the q-learning stuff
         self.old_distance_to_food = -1
         self.new_distance_to_food = -1
-        self.old_state = np.array([-1 for x in game.squares])
-        self.new_state = np.array([-1 for x in game.squares])
+        self.old_state = np.array([0,0,0,0, 0,0,0,0, 0])
+        self.new_state = np.array([0,0,0,0, 0,0,0,0, 0])
         self.reward = -1
         self.square_update()
         self.update_state(game)
@@ -55,8 +55,23 @@ class NPC:
 
     def update_state(self, game):
         self.old_state = self.new_state
-        self.new_state = np.array([x.state for x in game.squares])
-        # print('new_')
+        danger_NORTH = any([self.ys[0]-1 == y for y in self.ys]) or self.ys[0] == 0
+        danger_EAST = any([self.xs[0] + 1 == x for x in self.xs]) or self.xs[0] == self.max_x
+        danger_SOUTH = any([self.ys[0] + 1 == y for y in self.ys]) or self.ys[0] == self.max_y
+        danger_WEST = any([self.xs[0] - 1 == x for x in self.xs]) or self.xs[0] == 0
+
+        food_NORTH = self.ys[0] > game.food.y
+        food_WEST = self.xs[0] < game.food.x
+        food_SOUTH = self.ys[0] < game.food.y
+        food_EAST = self.xs[0] > game.food.x
+
+        dist_to_food = self.old_distance_to_food #maybe remove this
+
+        self.new_state = [danger_NORTH, danger_WEST, danger_SOUTH, danger_EAST, food_NORTH, food_WEST, food_SOUTH, food_EAST, dist_to_food]
+        self.new_state = np.array([1 if condition else 0 for condition in self.new_state])
+
+        # Old state model
+        #self.new_state = np.array([x.state for x in game.squares])
 
     def update_dist(self, game):
         self.old_distance_to_food = self.new_distance_to_food
@@ -67,6 +82,7 @@ class NPC:
         if not self.alive:
             self.reward = -100
 
+        #Should never happen
         elif not (False in [game.squares[0].states['board'] == x.state for x in game.squares]):
             self.reward = 10 ** 7
             print('Beat the game baby')
@@ -179,8 +195,8 @@ class NPC:
         self.square_update()
         self.old_distance_to_food = -1
         self.new_distance_to_food = self.calc_dist_to_food(game)
-        self.old_state = np.array([-1 for x in range((self.max_x + 1) * (self.max_y + 1))])
-        self.new_state = np.array([-1 for x in range((self.max_x + 1) * (self.max_y + 1))])
+        self.old_state = np.array([0,0,0,0, 0,0,0,0, 0])
+        self.new_state = np.array([0,0,0,0, 0,0,0,0, 0])
         self.reward = -1
         self.square_update()
         self.update_state(game)
