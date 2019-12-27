@@ -4,26 +4,29 @@ import npc
 import food
 import square
 
+
 class Game:
     def __init__(self):
         self.display_width = 400
         self.display_height = 400
-        self.n_squares_width = 7
-        self.n_squares_height = 7
+        self.n_squares_width = 10
+        self.n_squares_height = 10
         self.pygame = pygame
         self.gameDisplay = pygame.display.set_mode((self.display_width, self.display_height))
         self.pygame.display.set_caption('Snake')
         self.clock = pygame.time.Clock()
         self.black = (0, 0, 0)
-        self.fps = 100
+        self.fps = 200
         self.is_done = False
         self.img_scale_factor = 0.9
-        self.squares = [square.Square(x, y, self.display_width/self.n_squares_width, self.display_height/self.n_squares_height, self) for x in range(self.n_squares_width) for y in range(self.n_squares_height)]
+        self.squares = [
+            square.Square(x, y, self.display_width / self.n_squares_width, self.display_height / self.n_squares_height,
+                          self) for x in range(self.n_squares_width) for y in range(self.n_squares_height)]
 
         self.events = None
         self.human_playing = False
 
-        #create food and spawn it
+        # create food and spawn it
         self.food = food.Food(self)
         self.food.x = 0
         self.food.y = 0
@@ -77,4 +80,3 @@ class Game:
 
 
 Game().run()
-

@@ -20,6 +20,7 @@ class Food:
     def update(self, game):
         if not self.alive:
             self.spawn(game)
+
         index = self.x * (1 + self.max_x) + self.y
         self.squares[index].state = self.squares[0].states['food']
 

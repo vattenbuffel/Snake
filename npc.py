@@ -5,6 +5,7 @@ import numpy as np
 import Q_learning
 
 
+
 class NPC:
     def __init__(self, game):
         self.max_x = game.n_squares_width - 1
@@ -20,13 +21,14 @@ class NPC:
         self.frame_delay = self.frame_delay_max
         self.eaten = False
         self.end_pos = None
+        self.score = 0
 
         self.human_playing = game.human_playing
         # Initiate the q-learning stuff
         self.old_distance_to_food = -1
         self.new_distance_to_food = -1
-        self.old_state = np.array([0,0,0,0, 0,0,0,0, 0])
-        self.new_state = np.array([0,0,0,0, 0,0,0,0, 0])
+        self.old_state = np.array([0, 0, 0, 0, 0, 0, 0, 0])
+        self.new_state = np.array([0, 0, 0, 0, 0, 0, 0, 0])
         self.reward = -1
         self.square_update()
         self.update_state(game)
@@ -46,6 +48,7 @@ class NPC:
 
     def reproduce(self):
         if self.eaten and self.frame_delay == 0:
+            self.score += 1
             x, y = self.end_pos
             self.xs.append(x)
             self.ys.append(y)
@@ -55,7 +58,7 @@ class NPC:
 
     def update_state(self, game):
         self.old_state = self.new_state
-        danger_NORTH = any([self.ys[0]-1 == y for y in self.ys]) or self.ys[0] == 0
+        danger_NORTH = any([self.ys[0] - 1 == y for y in self.ys]) or self.ys[0] == 0
         danger_EAST = any([self.xs[0] + 1 == x for x in self.xs]) or self.xs[0] == self.max_x
         danger_SOUTH = any([self.ys[0] + 1 == y for y in self.ys]) or self.ys[0] == self.max_y
         danger_WEST = any([self.xs[0] - 1 == x for x in self.xs]) or self.xs[0] == 0
@@ -65,13 +68,12 @@ class NPC:
         food_SOUTH = self.ys[0] < game.food.y
         food_EAST = self.xs[0] > game.food.x
 
-        dist_to_food = self.old_distance_to_food #maybe remove this
-
-        self.new_state = [danger_NORTH, danger_WEST, danger_SOUTH, danger_EAST, food_NORTH, food_WEST, food_SOUTH, food_EAST, dist_to_food]
+        self.new_state = [danger_NORTH, danger_EAST, danger_SOUTH, danger_WEST, food_NORTH, food_EAST, food_SOUTH,
+                          food_WEST]
         self.new_state = np.array([1 if condition else 0 for condition in self.new_state])
 
         # Old state model
-        #self.new_state = np.array([x.state for x in game.squares])
+        # self.new_state = np.array([x.state for x in game.squares])
 
     def update_dist(self, game):
         self.old_distance_to_food = self.new_distance_to_food
@@ -82,7 +84,7 @@ class NPC:
         if not self.alive:
             self.reward = -100
 
-        #Should never happen
+        # Should never happen
         elif not (False in [game.squares[0].states['board'] == x.state for x in game.squares]):
             self.reward = 10 ** 7
             print('Beat the game baby')
@@ -120,18 +122,13 @@ class NPC:
             self.eaten = False
 
     def update_qlearning_stuff(self, game):
-        #if not self.human_playing and self.frame_delay <= 0:
-        if self.frame_delay <= 0:
+        if not self.human_playing and self.frame_delay <= 0:
             self.update_dist(game)
             self.update_state(game)
             self.update_reward(game)
             self.terminal_state = not self.alive
             self.action = self.dir
-            #print('self.state', self.new_state)
-            #print('self.reward', self.reward)
-            #print('self.distance', self.new_distance_to_food)
             self.agent.update(self)
-
 
     def square_update(self):
         if not self.alive:
@@ -189,17 +186,19 @@ class NPC:
                     return
 
     def restart(self, game):
-        self.xs = [1]#[int(self.max_x / 2)]
-        self.ys = [1]#[int(self.max_y / 2)]
+        self.xs = [int(self.max_x / 2)]
+        self.ys = [int(self.max_y / 2)]
         self.alive = True
         self.square_update()
         self.old_distance_to_food = -1
         self.new_distance_to_food = self.calc_dist_to_food(game)
-        self.old_state = np.array([0,0,0,0, 0,0,0,0, 0])
-        self.new_state = np.array([0,0,0,0, 0,0,0,0, 0])
+        self.old_state = np.array([0, 0, 0, 0, 0, 0, 0, 0])
+        self.new_state = np.array([0, 0, 0, 0, 0, 0, 0, 0])
         self.reward = -1
         self.square_update()
         self.update_state(game)
         self.update_dist(game)
         self.update_reward(game)
+        print('Died with score:', self.score)
+        self.score = 0
         self.terminal_state = False
