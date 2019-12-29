@@ -1,6 +1,7 @@
 import numpy as np
 import time
 from os import walk
+import random
 
 import keras.backend.tensorflow_backend as backend
 from keras.models import Sequential
@@ -10,13 +11,18 @@ from keras.models import load_model
 from keras.callbacks import TensorBoard
 
 
+# todo: try with a pure list memory
+# todo: do an evaluation method, try all possibilites [1 0 0 0 0 1 0 0] for example
+# todo: add drop out
+# todo: train on every iteration of the for-loop?
 class Agent:
     def __init__(self, npc):
         self.discount = 0.9
         self.training_batch_size = 2500
         self.update_target_every = 10
         self.target_update_counter = 0
-        self.memory = [[[], []]]
+        # self.memory = [[[], []]]
+        self.memory = []
         self.verbose = 0
 
         self.n_outputs = npc.n_actions
@@ -24,10 +30,10 @@ class Agent:
 
         self.epsilon_max = 0.999
         self.epsilon = self.epsilon_max
-        self.epsilon_decay = 0.999
+        self.epsilon_decay = 0.996
         self.epsilon_min = 0.001
 
-        self.save_max = 100000
+        self.save_max = 500
         self.save_counter = 0
 
         self.training_mode = self.get_training_mode()
@@ -49,7 +55,7 @@ class Agent:
             self.epsilon_decay = 0
             self.epsilon_min = 0
 
-    # Ask the user if a already existing model should be used, a new be created and whether it should be trained or not
+    # Ask the user if an already existing model should be used, a new be created and whether it should be trained or not
     def get_model(self):
         print('\nShould a new model be created or should a pre existing one be used? \n1) New model \n2) Pre existing '
               'model')
@@ -77,7 +83,7 @@ class Agent:
                 print('Incorrect input')
                 exit()
 
-            model = load_model(mypath + h5_files[int(ans)-1])
+            model = load_model(mypath + h5_files[int(ans) - 1])
             if not model.get_input_shape_at(0) == (None, self.n_inputs):
                 print("The input structure of the model doesn't comply with the code")
                 exit()
@@ -85,7 +91,7 @@ class Agent:
                 print("The output structure of the model doesn't comply with the code")
                 exit()
 
-            print("Model", h5_files[int(ans)-1], "is loaded")
+            print("Model", h5_files[int(ans) - 1], "is loaded")
             return model
         else:
             print("Invalid choice")
@@ -108,7 +114,9 @@ class Agent:
         model = Sequential()
 
         model.add(Dense(256, activation='relu', input_dim=self.n_inputs))
+        model.add(Dropout(0.15))
         model.add(Dense(256, activation='relu'))
+        model.add(Dropout(0.15))
         model.add(Dense(self.n_outputs))
 
         model.compile(loss="mse", optimizer=Adam(lr=0.001), metrics=['mae'])
@@ -123,6 +131,10 @@ class Agent:
                 npc)  # Why is this being called here???????? does the agent give a new action without the npc asking for one?
 
     def update_memory(self, npc):
+        self.memory.append(np.array([npc.old_state, npc.new_state, npc.action, npc.reward, npc.terminal_state]))
+        return
+
+        # The memory model which separates the state based on actions as to not batch train on different q values
         for i in range(len(self.memory)):
             if npc.old_state.tolist() not in self.memory[i][0]:
                 self.memory[i].append(
@@ -133,6 +145,10 @@ class Agent:
 
             elif npc.old_state.tolist() in self.memory[i][0] and npc.action == self.memory[i][1][
                 self.memory[i][0].index(npc.old_state.tolist())]:
+                self.memory[i].append(
+                    np.array([npc.old_state, npc.new_state, npc.action, npc.reward, npc.terminal_state]))
+                self.memory[i][0].append(npc.old_state.tolist())
+                self.memory[i][1].append(npc.action)
                 return
 
         # If not yet added to any memory list start a new memory list
@@ -141,6 +157,7 @@ class Agent:
         self.memory.append(new_memory_list)
 
     def train(self):
+        """
         index = np.random.randint(0, len(self.memory))
         train_batch = self.memory[index][2:len(self.memory[index]) + 1]
 
@@ -149,9 +166,17 @@ class Agent:
 
         new_states = np.array([x[1] for x in train_batch])
         new_qs_list = self.target_model.predict(new_states)
+        """
+        if len(self.memory) > self.training_batch_size:
+            train_batch = random.sample(self.memory, self.training_batch_size)
+        else:
+            return
 
-        x = []
-        y = []
+        old_states = np.array([transition[0] for transition in train_batch]).reshape(-1, self.n_inputs)
+        old_qs_list = self.model.predict(old_states)
+
+        new_states = np.array([transition[1] for transition in train_batch]).reshape(-1, self.n_inputs)
+        new_qs_list = self.model.predict(new_states)
 
         for i, (old_state, new_state, action, reward, in_terminal_state) in enumerate(train_batch):
             if not in_terminal_state:
@@ -163,11 +188,9 @@ class Agent:
             old_qs = old_qs_list[i]
             old_qs[action] = updated_q
 
-            x.append(old_state)
-            y.append(old_qs)
+            self.model.fit(np.array(old_state).reshape(-1, self.n_inputs), np.array(old_qs).reshape(-1, self.n_outputs), epochs=1,
+                           verbose=self.verbose, shuffle=False)
 
-        self.model.fit(np.array(x), np.array(y), epochs=10, batch_size=self.training_batch_size, verbose=self.verbose,
-                       shuffle=False)
 
         self.target_update_counter += 1
         if self.target_update_counter >= self.update_target_every:
@@ -195,4 +218,40 @@ class Agent:
         if not name:
             name = str(int(time.time()))
 
-        self.model.save("./trained_agents/"+name+".h5")
+        self.model.save("./trained_agents/" + name + ".h5")
+
+    def eval(self):
+        states = [[0], [1]]
+
+        while len(states[0]) < 8:
+            tmp = []
+            for state in states:
+
+                for i in range(2):
+                    x = state.copy()
+                    x.append(i)
+                    tmp.append(x)
+
+            states = tmp
+
+        for state in states:
+            if state[4] == 1:
+                state[6] = 0
+            if state[5] == 1:
+                state[7] = 0
+
+        # why are the duplicates not removed?
+        tmp = []
+        for state in states:
+            if state not in tmp:
+                tmp.append(state)
+        states = tmp
+
+        states = np.array(states)
+        predictions = self.model.predict(states)
+        n_wrong_predictions = 0
+
+        for i in range(len(states)):
+            if states[i][np.argmax(predictions[i])] == 1:
+                n_wrong_predictions += 1
+        print("wrongs predictions:", n_wrong_predictions / len(states), " %")
