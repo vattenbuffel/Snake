@@ -37,7 +37,9 @@ class Square:
         self.state = self.states['board']
 
     def render(self):
+
         self.img = self.images[self.state]
         x = self.x * self.width + self.width * (1 - self.scale_factor) / 2
         y = self.y * self.height + self.height * (1 - self.scale_factor) / 2
+        self.disp.blit(self.images[0], (x, y))
         self.disp.blit(self.img, (x, y))

@@ -3,7 +3,8 @@ import random
 import math
 import numpy as np
 import Q_learning
-
+from collections import deque
+import time
 
 
 class NPC:
@@ -22,13 +23,15 @@ class NPC:
         self.eaten = False
         self.end_pos = None
         self.score = 0
+        self.score_mem = deque(maxlen=100)
+        self.avg_score = 0
 
         self.human_playing = game.human_playing
         # Initiate the q-learning stuff
         self.old_distance_to_food = -1
         self.new_distance_to_food = -1
-        self.old_state = np.array([0, 0, 0, 0, 0, 0, 0, 0])
-        self.new_state = np.array([0, 0, 0, 0, 0, 0, 0, 0])
+        self.old_state = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        self.new_state = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         self.reward = -1
         self.square_update()
         self.update_state(game)
@@ -38,7 +41,8 @@ class NPC:
 
         self.n_actions = 4
         self.action = self.dir
-        self.agent = Q_learning.Agent(self)
+        if not self.human_playing:
+            self.agent = Q_learning.Agent(self)
 
     def eat(self, game):
         if self.xs[0] == game.food.x and self.ys[0] == game.food.y:
@@ -58,22 +62,43 @@ class NPC:
 
     def update_state(self, game):
         self.old_state = self.new_state
-        danger_NORTH = any([self.ys[0] - 1 == y for y in self.ys]) or self.ys[0] == 0
-        danger_EAST = any([self.xs[0] + 1 == x for x in self.xs]) or self.xs[0] == self.max_x
-        danger_SOUTH = any([self.ys[0] + 1 == y for y in self.ys]) or self.ys[0] == self.max_y
-        danger_WEST = any([self.xs[0] - 1 == x for x in self.xs]) or self.xs[0] == 0
+
+        def remove_false(x):
+            if False in x:
+                x = list(set(x))
+                x.remove(False)
+            return x
+
+        indices = [i if self.ys[0] - 1 == self.ys[i] else False for i in range(len(self.xs))]
+        indices = remove_false(indices)
+        danger_NORTH = self.xs[0] in np.array(self.xs)[indices] or self.ys[0] == 0
+
+        indices = [i if self.xs[0] + 1 == self.xs[i] else False for i in range(len(self.xs))]
+        indices = remove_false(indices)
+        danger_EAST = self.ys[0] in np.array(self.ys)[indices] or self.xs[0] == self.max_x
+
+        indices = [i if self.ys[0] + 1 == self.ys[i] else False for i in range(len(self.xs))]
+        indices = remove_false(indices)
+        danger_SOUTH = self.xs[0] in np.array(self.xs)[indices] or self.ys[0] == self.max_y
+
+        indices = [i if self.xs[0] - 1 == self.xs[i] else False for i in range(len(self.xs))]
+        indices = remove_false(indices)
+        danger_WEST = self.ys[0] in np.array(self.ys)[indices] or self.xs[0] == 0
 
         food_NORTH = self.ys[0] > game.food.y
-        food_WEST = self.xs[0] < game.food.x
+        food_EAST = self.xs[0] < game.food.x
         food_SOUTH = self.ys[0] < game.food.y
-        food_EAST = self.xs[0] > game.food.x
+        food_WEST = self.xs[0] > game.food.x
+
+        going_NORTH = 0 == self.dir
+        going_EAST = 1 == self.dir
+        going_SOUTH = 2 == self.dir
+        going_WEST = 3 == self.dir
 
         self.new_state = [danger_NORTH, danger_EAST, danger_SOUTH, danger_WEST, food_NORTH, food_EAST, food_SOUTH,
-                          food_WEST]
-        self.new_state = np.array([1 if condition else 0 for condition in self.new_state])
+                          food_WEST, going_NORTH, going_EAST, going_SOUTH, going_WEST]
 
-        # Old state model
-        # self.new_state = np.array([x.state for x in game.squares])
+        self.new_state = np.array([1 if condition else 0 for condition in self.new_state])
 
     def update_dist(self, game):
         self.old_distance_to_food = self.new_distance_to_food
@@ -96,10 +121,10 @@ class NPC:
 
         # Check if gotten closer to food reward is 1 and update old_dist_to_food
         elif self.new_distance_to_food < self.old_distance_to_food:
-            self.reward = 10
+            self.reward = 1
             # If not closer reward is -1
         else:
-            self.reward = -10
+            self.reward = -1
 
     def calc_dist_to_food(self, game):
         x_diff = self.xs[0] - game.food.x
@@ -120,6 +145,8 @@ class NPC:
         if self.frame_delay <= 0:
             self.frame_delay = self.frame_delay_max
             self.eaten = False
+            #tmp
+            #self.update_state(game)
 
     def update_qlearning_stuff(self, game):
         if not self.human_playing and self.frame_delay <= 0:
@@ -192,13 +219,24 @@ class NPC:
         self.square_update()
         self.old_distance_to_food = -1
         self.new_distance_to_food = self.calc_dist_to_food(game)
-        self.old_state = np.array([0, 0, 0, 0, 0, 0, 0, 0])
-        self.new_state = np.array([0, 0, 0, 0, 0, 0, 0, 0])
+        self.old_state = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        self.new_state = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         self.reward = -1
         self.square_update()
         self.update_state(game)
         self.update_dist(game)
         self.update_reward(game)
+        self.score_mem.append(self.score)
+        self.avg_score = sum(self.score_mem)/len(self.score_mem)
         print('Died with score:', self.score)
+        print("average score:", self.avg_score)
+        print()
+
+        # save if the model is better than the avg
+        if self.score > self.avg_score:
+            a = time.localtime()
+            name = str(str(a.tm_hour) + "_" + str(a.tm_min) + "_" + str(a.tm_sec))+"score_"+str(self.score)
+            self.agent.save_model(name)
+
         self.score = 0
         self.terminal_state = False

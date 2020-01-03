@@ -9,14 +9,14 @@ class Game:
     def __init__(self):
         self.display_width = 400
         self.display_height = 400
-        self.n_squares_width = 10
-        self.n_squares_height = 10
+        self.n_squares_width = 30
+        self.n_squares_height = 30
         self.pygame = pygame
         self.gameDisplay = pygame.display.set_mode((self.display_width, self.display_height))
         self.pygame.display.set_caption('Snake')
         self.clock = pygame.time.Clock()
         self.black = (0, 0, 0)
-        self.fps = 200
+        self.fps = 2000
         self.is_done = False
         self.img_scale_factor = 0.9
         self.squares = [

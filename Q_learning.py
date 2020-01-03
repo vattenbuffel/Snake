@@ -10,30 +10,24 @@ from keras.optimizers import Adam
 from keras.models import load_model
 from keras.callbacks import TensorBoard
 
-
-# todo: try with a pure list memory
-# todo: do an evaluation method, try all possibilites [1 0 0 0 0 1 0 0] for example
-# todo: add drop out
-# todo: train on every iteration of the for-loop?
 class Agent:
     def __init__(self, npc):
         self.discount = 0.9
-        self.training_batch_size = 2500
-        self.update_target_every = 10
+        self.training_batch_size = 256
+        self.update_target_every = 50
         self.target_update_counter = 0
-        # self.memory = [[[], []]]
         self.memory = []
         self.verbose = 0
 
         self.n_outputs = npc.n_actions
         self.n_inputs = len(npc.old_state)
 
-        self.epsilon_max = 0.999
+        self.epsilon_max = 1
         self.epsilon = self.epsilon_max
         self.epsilon_decay = 0.996
         self.epsilon_min = 0.001
 
-        self.save_max = 500
+        self.save_max = 5000000
         self.save_counter = 0
 
         self.training_mode = self.get_training_mode()
@@ -126,47 +120,11 @@ class Agent:
         if self.training_mode:
             self.update_memory(npc)
             self.train()
-            # todo: should the call below be removed?
-            self.get_action(
-                npc)  # Why is this being called here???????? does the agent give a new action without the npc asking for one?
 
     def update_memory(self, npc):
         self.memory.append(np.array([npc.old_state, npc.new_state, npc.action, npc.reward, npc.terminal_state]))
-        return
-
-        # The memory model which separates the state based on actions as to not batch train on different q values
-        for i in range(len(self.memory)):
-            if npc.old_state.tolist() not in self.memory[i][0]:
-                self.memory[i].append(
-                    np.array([npc.old_state, npc.new_state, npc.action, npc.reward, npc.terminal_state]))
-                self.memory[i][0].append(npc.old_state.tolist())
-                self.memory[i][1].append(npc.action)
-                return
-
-            elif npc.old_state.tolist() in self.memory[i][0] and npc.action == self.memory[i][1][
-                self.memory[i][0].index(npc.old_state.tolist())]:
-                self.memory[i].append(
-                    np.array([npc.old_state, npc.new_state, npc.action, npc.reward, npc.terminal_state]))
-                self.memory[i][0].append(npc.old_state.tolist())
-                self.memory[i][1].append(npc.action)
-                return
-
-        # If not yet added to any memory list start a new memory list
-        new_memory_list = [[npc.old_state.tolist()], [npc.action],
-                           np.array([npc.old_state, npc.new_state, npc.action, npc.reward, npc.terminal_state])]
-        self.memory.append(new_memory_list)
 
     def train(self):
-        """
-        index = np.random.randint(0, len(self.memory))
-        train_batch = self.memory[index][2:len(self.memory[index]) + 1]
-
-        old_states = np.array([x[0] for x in train_batch])
-        old_qs_list = self.model.predict(old_states)
-
-        new_states = np.array([x[1] for x in train_batch])
-        new_qs_list = self.target_model.predict(new_states)
-        """
         if len(self.memory) > self.training_batch_size:
             train_batch = random.sample(self.memory, self.training_batch_size)
         else:
@@ -176,7 +134,10 @@ class Agent:
         old_qs_list = self.model.predict(old_states)
 
         new_states = np.array([transition[1] for transition in train_batch]).reshape(-1, self.n_inputs)
-        new_qs_list = self.model.predict(new_states)
+        new_qs_list = self.target_model.predict(new_states)
+
+        x = []
+        y = []
 
         for i, (old_state, new_state, action, reward, in_terminal_state) in enumerate(train_batch):
             if not in_terminal_state:
@@ -185,12 +146,15 @@ class Agent:
             else:
                 updated_q = reward
 
-            old_qs = old_qs_list[i]
+            # Should it be a copy here?????
+            old_qs = (old_qs_list[i]).copy()
             old_qs[action] = updated_q
 
-            self.model.fit(np.array(old_state).reshape(-1, self.n_inputs), np.array(old_qs).reshape(-1, self.n_outputs), epochs=1,
-                           verbose=self.verbose, shuffle=False)
+            x.append(old_state)
+            y.append(old_qs)
 
+        self.model.fit(np.array(x).reshape(-1, self.n_inputs), np.array(y).reshape(-1, self.n_outputs), epochs=1,
+                       verbose=self.verbose, shuffle=True)
 
         self.target_update_counter += 1
         if self.target_update_counter >= self.update_target_every:
@@ -205,9 +169,9 @@ class Agent:
     def get_action(self, npc):
         # Sometime return a random action
         self.epsilon *= self.epsilon_decay
-
         if self.epsilon < self.epsilon_min:
-            self.epsilon = self.epsilon_max
+            self.epsilon = self.epsilon_min
+
         if np.random.random() < self.epsilon:
             return np.random.randint(0, self.n_outputs)
 
@@ -216,42 +180,8 @@ class Agent:
 
     def save_model(self, name=False):
         if not name:
-            name = str(int(time.time()))
+            a = time.localtime()
+            name = str(str(a.tm_hour) + "_" + str(a.tm_min) + "_" + str(a.tm_sec))
 
         self.model.save("./trained_agents/" + name + ".h5")
 
-    def eval(self):
-        states = [[0], [1]]
-
-        while len(states[0]) < 8:
-            tmp = []
-            for state in states:
-
-                for i in range(2):
-                    x = state.copy()
-                    x.append(i)
-                    tmp.append(x)
-
-            states = tmp
-
-        for state in states:
-            if state[4] == 1:
-                state[6] = 0
-            if state[5] == 1:
-                state[7] = 0
-
-        # why are the duplicates not removed?
-        tmp = []
-        for state in states:
-            if state not in tmp:
-                tmp.append(state)
-        states = tmp
-
-        states = np.array(states)
-        predictions = self.model.predict(states)
-        n_wrong_predictions = 0
-
-        for i in range(len(states)):
-            if states[i][np.argmax(predictions[i])] == 1:
-                n_wrong_predictions += 1
-        print("wrongs predictions:", n_wrong_predictions / len(states), " %")
